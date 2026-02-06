@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserData().role == 'admin';
+    }
+
+    function isVendor() {
+      return isSignedIn() && getUserData().role == 'vendor';
+    }
+
+    function isVerifiedVendor() {
+      return isVendor() && getUserData().isVerified == true;
+    }
+
+    // --- Users Collection ---
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId);
+      allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isVerified']));
+    }
+
+    // --- Restaurants Collection ---
+    match /restaurants/{restaurantId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAdmin() || (isVerifiedVendor() && resource.data.ownerId == request.auth.uid);
+    }
+
+    // --- Menu Items Collection ---
+    match /menu_items/{itemId} {
+      allow read: if true;
+      allow create: if isVerifiedVendor() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAdmin() || (isVerifiedVendor() && resource.data.ownerId == request.auth.uid);
+    }
+
+    // --- Orders Collection ---
+    match /orders/{orderId} {
+      allow create: if isSignedIn();
+      // Allow read if user is the customer OR if user is a vendor (broad read for MVP vendors) OR Admin
+      allow read: if isSignedIn(); 
+      allow update: if isAdmin() || isVerifiedVendor();
+    }
+  }
+}

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Dashboard | MealMint</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/global.css">
+    <link rel="stylesheet" href="../assets/css/vendor.css">
+</head>
+
+<body>
+    <div class="vendor-layout">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h4 class="fw-bold text-success mb-0">MealMint Partner</h4>
+            </div>
+            <div class="sidebar-menu">
+                <ul class="nav flex-column">
+                    <li class="nav-item"><a href="vendor-dashboard.html" class="nav-link active"><i
+                                class="fas fa-home"></i> Dashboard</a></li>
+                    <li class="nav-item"><a href="orders.html" class="nav-link"><i class="fas fa-shopping-bag"></i>
+                            Orders</a></li>
+                    <li class="nav-item"><a href="menu.html" class="nav-link"><i class="fas fa-utensils"></i> Menu
+                            Management</a></li>
+                    <li class="nav-item"><a href="earnings.html" class="nav-link"><i class="fas fa-wallet"></i>
+                            Earnings</a></li>
+                    <li class="nav-item"><a href="settings.html" class="nav-link"><i class="fas fa-cog"></i>
+                            Settings</a></li>
+                </ul>
+                <div class="mt-auto p-3">
+                    <button class="btn btn-outline-danger w-100" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold">Dashboard Overview</h2>
+                    <p class="text-muted">Welcome back, <span id="vendorName">...</span> <i
+                            class="fas fa-hand-sparkles text-warning"></i></p>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <!-- Toggle removed as per request: Always Open -->
+                    <span class="badge bg-success rounded-pill px-3 py-2">OPEN FOR ORDERS</span>
+                </div>
+            </div>
+
+            <!-- Stats Row -->
+            <div class="row g-4 mb-5">
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div>
+                            <p class="text-muted mb-1">Total Orders</p>
+                            <h3 class="fw-bold mb-0" id="statOrders">0</h3>
+                        </div>
+                        <div class="stats-icon bg-light-primary"><i class="fas fa-shopping-bag"></i></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div>
+                            <p class="text-muted mb-1">Total Revenue</p>
+                            <h3 class="fw-bold mb-0" id="statRevenue">Rs. 0</h3>
+                        </div>
+                        <div class="stats-icon bg-light-warning"><i class="fas fa-wallet"></i></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div>
+                            <p class="text-muted mb-1">Rating</p>
+                            <h3 class="fw-bold mb-0" id="statRating">0.0 <i class="fas fa-star text-warning"
+                                    style="font-size: 0.8em;"></i></h3>
+                        </div>
+                        <div class="stats-icon bg-light-info"><i class="fas fa-star"></i></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div>
+                            <p class="text-muted mb-1">Pending Actions</p>
+                            <h3 class="fw-bold mb-0" id="statPending">0</h3>
+                        </div>
+                        <div class="stats-icon bg-light-danger"><i class="fas fa-clock"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Orders -->
+            <h4 class="fw-bold mb-3">Live Orders</h4>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Order ID</th>
+                                    <th>Customer Info</th>
+                                    <th>Items</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="liveOrdersTable">
+                                <tr>
+                                    <td colspan="6" class="text-center p-4">Loading orders...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { auth, db } from '../assets/js/firebase-config.js';
+        import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { doc, getDoc, updateDoc, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        import { checkAuth } from '../assets/js/role-guard.js';
+
+        // Auth & Role Check (requires verification)
+        checkAuth('vendor', true).then(({ user, userData }) => {
+            setupDashboard(user.uid);
+        }).catch(err => {
+            console.error('Auth failed:', err);
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            signOut(auth).then(() => window.location.href = 'vendor-login.html');
+        });
+
+        async function setupDashboard(uid) {
+            // 1. Get User/Restaurant Info
+            try {
+                const userDoc = await getDoc(doc(db, "users", uid));
+                if (userDoc.exists()) {
+                    document.getElementById('vendorName').innerText = userDoc.data().fullName;
+                }
+
+                const resDocRef = doc(db, "restaurants", uid);
+                const resDoc = await getDoc(resDocRef);
+                if (resDoc.exists()) {
+                    const data = resDoc.data();
+                    // Always Active
+                    document.getElementById('statRating').innerHTML = (data.rating || 0).toFixed(1) + ' <i class="fas fa-star text-warning"></i>';
+
+                    // Ensure it is set to active in DB if not already
+                    if (!data.isActive) {
+                        updateDoc(resDocRef, { isActive: true });
+                    }
+                }
+            } catch (error) { console.error("Error fetching restaurant data:", error); }
+
+            // 2. Listen to Orders
+            const q = query(collection(db, "orders"), where("restaurantId", "==", uid));
+
+            // Real-time listener
+            onSnapshot(q, (snapshot) => {
+                let totalOrders = 0;
+                let totalRevenue = 0;
+                let pendingCount = 0;
+                let liveParams = [];
+
+                snapshot.forEach(docSnap => {
+                    const order = docSnap.data();
+                    order.id = docSnap.id;
+                    totalOrders++;
+
+                    if (order.status !== 'cancelled' && order.status !== 'rejected') {
+                        totalRevenue += (order.total || 0);
+                    }
+
+                    if (order.status === 'pending') pendingCount++;
+
+                    // For "Live Orders" table (only recent incomplete orders)
+                    if (order.status === 'pending' || order.status === 'preparing' || order.status === 'ready') {
+                        liveParams.push(order);
+                    }
+                });
+
+                document.getElementById('statOrders').innerText = totalOrders;
+                document.getElementById('statRevenue').innerText = 'Rs. ' + Math.round(totalRevenue).toLocaleString();
+                document.getElementById('statPending').innerText = pendingCount;
+
+                renderLiveOrders(liveParams);
+            });
+        }
+
+        function renderLiveOrders(orders) {
+            const tbody = document.getElementById('liveOrdersTable');
+            if (orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-muted">No active orders right now.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            // Sort by Date Descending (newest first)
+            orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            orders.forEach(order => {
+                const itemsStr = order.items.map(i => `${i.quantity}x ${i.name}`).join(', ');
+                let badgeClass = 'bg-secondary';
+                if (order.status === 'pending') badgeClass = 'bg-warning text-dark';
+                if (order.status === 'preparing') badgeClass = 'bg-info text-dark';
+                if (order.status === 'ready') badgeClass = 'bg-success';
+
+                let actions = '';
+                if (order.status === 'pending') {
+                    actions = `
+                        <button class="btn btn-sm btn-success me-1" onclick="updateStatus('${order.id}', 'preparing')"><i class="fas fa-check"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="updateStatus('${order.id}', 'rejected')"><i class="fas fa-times"></i></button>
+                    `;
+                } else if (order.status === 'preparing') {
+                    actions = `<button class="btn btn-sm btn-primary" onclick="updateStatus('${order.id}', 'ready')">Mark Ready</button>`;
+                } else if (order.status === 'ready') {
+                    actions = `<button class="btn btn-sm btn-success" onclick="updateStatus('${order.id}', 'completed')">Complete</button>`;
+                }
+
+                const html = `
+                    <tr>
+                        <td class="ps-4 fw-bold">#${order.id.substr(0, 6)}...</td>
+                        <td>
+                            <div class="fw-bold">${order.deliveryAddress?.fullName || 'Guest'}</div>
+                            <small class="text-muted">${order.deliveryAddress?.phone || ''}</small>
+                        </td>
+                        <td>${itemsStr}</td>
+                        <td>Rs. ${Math.round(order.total)}</td>
+                        <td><span class="badge ${badgeClass}">${order.status.toUpperCase()}</span></td>
+                        <td>${actions}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += html;
+            });
+        }
+
+        window.updateStatus = async (orderId, newStatus) => {
+            try {
+                await updateDoc(doc(db, "orders", orderId), { status: newStatus });
+                Swal.fire({ icon: 'success', title: 'Status Updated', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+            } catch (e) {
+                Swal.fire('Error', e.message, 'error');
+            }
+        };
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Orders | MealMint</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/global.css">
+    <style>
+        .order-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+        }
+
+        .order-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .order-status {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-preparing {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-on-the-way {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .status-delivered {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .order-timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline-step {
+            position: relative;
+            padding-bottom: 20px;
+        }
+
+        .timeline-step::before {
+            content: '';
+            position: absolute;
+            left: -22px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e0e0e0;
+        }
+
+        .timeline-step.active::before {
+            background: var(--primary-color);
+        }
+
+        .timeline-step::after {
+            content: '';
+            position: absolute;
+            left: -17px;
+            top: 17px;
+            width: 2px;
+            height: 100%;
+            background: #e0e0e0;
+        }
+
+        .timeline-step:last-child::after {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loader-wrapper">
+        <div class="loader"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">MEALMINT</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link" href="home.html">Home</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="orders.html">My Orders</a></li>
+                    <li class="nav-item"><a class="nav-link" href="profile.html">Profile</a></li>
+                    <li class="nav-item"><button class="btn btn-outline-primary ms-lg-3" id="logoutBtn">Logout</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Orders Section -->
+    <section class="py-5 bg-light">
+        <div class="container">
+            <h2 class="mb-4">My Orders</h2>
+
+            <!-- Filter Tabs -->
+            <ul class="nav nav-pills mb-4">
+                <li class="nav-item">
+                    <a class="nav-link active" data-filter="all" href="#">All Orders</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-filter="pending" href="#">Pending</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-filter="on-the-way" href="#">On the Way</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-filter="delivered" href="#">Delivered</a>
+                </li>
+            </ul>
+
+            <div id="ordersContainer">
+                <!-- Orders will be loaded here -->
+            </div>
+        </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { auth, db } from '../assets/js/firebase-config.js';
+        import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        import { checkAuth } from '../assets/js/role-guard.js';
+
+        let orders = [];
+        let currentFilter = 'all';
+
+        // Auth & Role Check
+        checkAuth('user').then(({ user, userData }) => {
+            loadOrders(user.uid);
+        }).catch(err => {
+            console.error('Auth failed:', err);
+        });
+
+        window.addEventListener('load', () => {
+            document.getElementById('loader-wrapper').style.display = 'none';
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await signOut(auth);
+            window.location.href = '../index.html';
+        });
+
+        async function loadOrders(userId) {
+            try {
+                // Removed orderBy to avoid Firestore index requirement
+                const q = query(collection(db, "orders"), where("userId", "==", userId));
+                const querySnapshot = await getDocs(q);
+                orders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Sort in JavaScript instead
+                orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                console.log(`Loaded ${orders.length} orders for user ${userId}`);
+            } catch (error) {
+                console.error("Error loading orders:", error);
+                orders = [];
+                // Show error to user
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error Loading Orders',
+                    text: error.message,
+                    confirmButtonColor: '#d70f64'
+                });
+            }
+            displayOrders();
+        }
+
+        function getSampleOrders() {
+            return [
+                {
+                    id: '1',
+                    items: [
+                        { name: 'Margherita Pizza', quantity: 2, price: 899 },
+                        { name: 'Garlic Bread', quantity: 1, price: 299 }
+                    ],
+                    total: 2197,
+                    status: 'delivered',
+                    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                    deliveryAddress: {
+                        address: '123 Main Street',
+                        city: 'Karachi'
+                    }
+                },
+                {
+                    id: '2',
+                    items: [
+                        { name: 'Pepperoni Pizza', quantity: 1, price: 1099 }
+                    ],
+                    total: 1254,
+                    status: 'on-the-way',
+                    createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+                    deliveryAddress: {
+                        address: '456 Park Avenue',
+                        city: 'Lahore'
+                    }
+                }
+            ];
+        }
+
+        function displayOrders() {
+            const container = document.getElementById('ordersContainer');
+            const filteredOrders = currentFilter === 'all' ? orders : orders.filter(o => o.status === currentFilter);
+
+            if (filteredOrders.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-5">
+                        <img src="https://cdn-icons-png.flaticon.com/512/4076/4076549.png" width="150" alt="No Orders">
+                        <h4 class="mt-4">No orders found</h4>
+                        <p class="text-muted">Start ordering delicious food!</p>
+                        <a href="home.html" class="btn btn-primary mt-3">Browse Restaurants</a>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+            filteredOrders.forEach(order => {
+                const orderDate = new Date(order.createdAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const statusClass = `status-${order.status}`;
+                const statusText = order.status.replace('-', ' ').toUpperCase();
+
+                const orderHtml = `
+                    <div class="order-card">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <h5>Order #${order.id}</h5>
+                                        <p class="text-muted mb-0">${orderDate}</p>
+                                    </div>
+                                    <span class="order-status ${statusClass}">${statusText}</span>
+                                </div>
+
+                                <div class="mb-3">
+                                    <strong>Items:</strong>
+                                    ${order.items.map(item => `
+                                        <div class="ms-3">• ${item.name} x${item.quantity}</div>
+                                    `).join('')}
+                                </div>
+
+                                <div class="mb-3">
+                                    <strong>Delivery Address:</strong>
+                                    <p class="mb-0 ms-3">${order.deliveryAddress.address}, ${order.deliveryAddress.city}</p>
+                                </div>
+
+                                <div>
+                                    <strong class="text-primary-color">Total: Rs. ${Math.round(order.total)}</strong>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <h6 class="mb-3">Order Status</h6>
+                                <div class="order-timeline">
+                                    <div class="timeline-step active">
+                                        <strong>Order Placed</strong>
+                                        <p class="text-muted small mb-0">Your order has been received</p>
+                                    </div>
+                                    <div class="timeline-step ${['preparing', 'ready', 'completed'].includes(order.status) ? 'active' : ''}">
+                                        <strong>Preparing</strong>
+                                        <p class="text-muted small mb-0">Restaurant is preparing your food</p>
+                                    </div>
+                                    <div class="timeline-step ${['ready', 'completed'].includes(order.status) ? 'active' : ''}">
+                                        <strong>Ready / On the Way</strong>
+                                        <p class="text-muted small mb-0">Food is ready for pickup/delivery</p>
+                                    </div>
+                                    <div class="timeline-step ${order.status === 'completed' ? 'active' : ''}">
+                                        <strong>Delivered</strong>
+                                        <p class="text-muted small mb-0">Order completed</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += orderHtml;
+            });
+        }
+
+        // Filter tabs
+        document.querySelectorAll('.nav-link[data-filter]').forEach(link => {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelectorAll('.nav-link[data-filter]').forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.dataset.filter;
+                displayOrders();
+            });
+        });
+    </script>
+</body>
+
+</html>

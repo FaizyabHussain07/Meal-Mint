@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout | MealMint</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/global.css">
+    <style>
+        .checkout-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .payment-method {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .payment-method:hover,
+        .payment-method.active {
+            border-color: var(--primary-color);
+            background: rgba(215, 15, 100, 0.05);
+        }
+
+        .order-summary-box {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: var(--shadow-md);
+            position: sticky;
+            top: 100px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loader-wrapper">
+        <div class="loader"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">MEALMINT</a>
+        </div>
+    </nav>
+
+    <!-- Checkout Section -->
+    <section class="py-5 bg-light">
+        <div class="container">
+            <h2 class="mb-4">Checkout</h2>
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Delivery Address -->
+                    <div class="checkout-section">
+                        <h4 class="mb-4"><i class="fas fa-map-marker-alt text-primary-color"></i> Delivery Address</h4>
+                        <form id="addressForm">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" id="fullName" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="phone" required>
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Street Address</label>
+                                    <input type="text" class="form-control" id="address" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">City</label>
+                                    <input type="text" class="form-control" id="city" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Postal Code</label>
+                                    <input type="text" class="form-control" id="postalCode" required>
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Delivery Instructions (Optional)</label>
+                                    <textarea class="form-control" id="instructions" rows="2"></textarea>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Payment Method -->
+                    <div class="checkout-section">
+                        <h4 class="mb-4"><i class="fas fa-credit-card text-primary-color"></i> Payment Method</h4>
+                        <div class="payment-method active" data-method="cod">
+                            <div class="d-flex align-items-center">
+                                <input type="radio" name="payment" value="cod" checked class="me-3">
+                                <div>
+                                    <h5 class="mb-1">Cash on Delivery</h5>
+                                    <p class="text-muted mb-0 small">Pay when you receive your order</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="payment-method" data-method="card">
+                            <div class="d-flex align-items-center">
+                                <input type="radio" name="payment" value="card" class="me-3">
+                                <div>
+                                    <h5 class="mb-1">Credit/Debit Card</h5>
+                                    <p class="text-muted mb-0 small">Pay securely with your card</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="payment-method" data-method="wallet">
+                            <div class="d-flex align-items-center">
+                                <input type="radio" name="payment" value="wallet" class="me-3">
+                                <div>
+                                    <h5 class="mb-1">Digital Wallet</h5>
+                                    <p class="text-muted mb-0 small">JazzCash, Easypaisa, etc. <span
+                                            class="wallet-balance-display text-success fw-bold ms-2"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="order-summary-box">
+                        <h4 class="mb-4">Order Summary</h4>
+                        <div id="orderItems" class="mb-3">
+                            <!-- Items will be loaded here -->
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <span id="subtotal">Rs. 0</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Delivery:</span>
+                            <span id="deliveryFee">Rs. 100</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>Tax:</span>
+                            <span id="tax">Rs. 0</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-4">
+                            <strong>Total:</strong>
+                            <strong class="text-primary-color" id="total">Rs. 0</strong>
+                        </div>
+                        <button class="btn btn-primary w-100" id="placeOrderBtn">Place Order</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { auth, db } from '../assets/js/firebase-config.js';
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { collection, addDoc, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        import { checkAuth } from '../assets/js/role-guard.js';
+
+        let cart = [];
+        let selectedPayment = 'cod';
+
+        // Auth & Role Check
+        checkAuth('user').then(({ user, userData }) => {
+            loadUserData(user);
+        }).catch(err => {
+            console.error('Auth failed:', err);
+        });
+
+        window.addEventListener('load', () => {
+            document.getElementById('loader-wrapper').style.display = 'none';
+            loadCart();
+        });
+
+        async function loadUserData(user) {
+            try {
+                const docSnap = await getDoc(doc(db, "users", user.uid));
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    document.getElementById('fullName').value = data.fullName || user.displayName || '';
+                    document.getElementById('phone').value = data.phone || '';
+                    document.getElementById('address').value = data.address || '';
+                    document.getElementById('city').value = data.city || '';
+                    document.getElementById('postalCode').value = data.postalCode || '';
+
+                    // Show Wallet Balance
+                    const balance = data.walletBalance || 0;
+                    document.querySelector('.wallet-balance-display').innerText = `Available: Rs. ${balance}`;
+                    window.currentUserBalance = balance;
+                }
+            } catch (e) {
+                console.error("Error loading user data", e);
+            }
+        }
+
+        // Place order
+        document.getElementById('placeOrderBtn').addEventListener('click', async () => {
+            const form = document.getElementById('addressForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const btn = document.getElementById('placeOrderBtn');
+            btn.disabled = true;
+            btn.innerText = 'Processing...';
+
+            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const deliveryFee = 50;
+            const tax = 0;
+            const totalAmount = subtotal + deliveryFee;
+
+            // Wallet Check
+            if (selectedPayment === 'wallet') {
+                if ((window.currentUserBalance || 0) < totalAmount) {
+                    Swal.fire('Insufficient Funds', 'You do not have enough balance. Please add money or choose COD.', 'error');
+                    btn.disabled = false;
+                    btn.innerText = 'Place Order';
+                    return;
+                }
+            }
+
+            const orderData = {
+                userId: auth.currentUser.uid,
+                customerName: document.getElementById('fullName').value,
+                items: cart,
+                deliveryAddress: {
+                    fullName: document.getElementById('fullName').value,
+                    phone: document.getElementById('phone').value,
+                    address: document.getElementById('address').value,
+                    city: document.getElementById('city').value,
+                    postalCode: document.getElementById('postalCode').value,
+                    instructions: document.getElementById('instructions').value
+                },
+                paymentMethod: selectedPayment,
+                subtotal: subtotal,
+                deliveryFee: deliveryFee,
+                tax: tax,
+                total: totalAmount,
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+                restaurantId: cart[0].shopId || cart[0].restaurantId || cart[0].ownerId,
+                vendorName: cart[0].shopName || 'Unknown Vendor'
+            };
+
+            if (!orderData.restaurantId) {
+                Swal.fire({
+                    title: 'Cart Error',
+                    text: 'Inconsistent Cart Data. Clearing cart.',
+                    icon: 'error'
+                }).then(() => {
+                    localStorage.removeItem('mealmint_cart');
+                    window.location.href = 'home.html';
+                });
+                return;
+            }
+
+            try {
+                // 1. Create Order
+                await addDoc(collection(db, 'orders'), orderData);
+
+                // 2. Update User Profile (Save Address & Deduct Balance)
+                const userUpdate = {
+                    address: orderData.deliveryAddress.address,
+                    city: orderData.deliveryAddress.city,
+                    postalCode: orderData.deliveryAddress.postalCode,
+                    phone: orderData.deliveryAddress.phone,
+                    // increment total spent
+                    totalSpent: (window.currentUserData?.totalSpent || 0) + totalAmount
+                };
+
+                if (selectedPayment === 'wallet') {
+                    userUpdate.walletBalance = window.currentUserBalance - totalAmount;
+                }
+
+                await updateDoc(doc(db, "users", auth.currentUser.uid), userUpdate);
+
+                localStorage.removeItem('mealmint_cart');
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Order Placed!',
+                    text: selectedPayment === 'wallet' ? `Paid Rs ${Math.round(totalAmount)} from Wallet` : 'Order placed successfully',
+                    confirmButtonColor: '#d70f64'
+                }).then(() => {
+                    window.location.href = 'orders.html';
+                });
+            } catch (error) {
+                console.error(error);
+                btn.disabled = false;
+                btn.innerText = 'Place Order';
+                Swal.fire('Order Failed', error.message, 'error');
+            }
+        });
+
+        function loadCart() {
+            cart = JSON.parse(localStorage.getItem('mealmint_cart') || '[]');
+            if (cart.length === 0) {
+                window.location.href = 'cart.html';
+                return;
+            }
+            displayOrderItems();
+            calculateTotals();
+        }
+
+        function displayOrderItems() {
+            const container = document.getElementById('orderItems');
+            container.innerHTML = '';
+            cart.forEach(item => {
+                container.innerHTML += `
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>${item.name} x${item.quantity}</span>
+                        <span>Rs. ${item.price * item.quantity}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function calculateTotals() {
+            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const deliveryFee = 50; // Match Cart Page
+            // const tax = subtotal * 0.05; // Removed to match Cart
+            const tax = 0;
+            const total = subtotal + deliveryFee;
+
+            document.getElementById('subtotal').textContent = `Rs. ${subtotal}`;
+            document.getElementById('deliveryFee').textContent = `Rs. ${deliveryFee}`;
+            document.getElementById('tax').textContent = `Rs. 0`; // Set to 0
+            document.getElementById('total').textContent = `Rs. ${total}`;
+
+            return total; // Return for use in placement
+        }
+
+        // Payment method selection
+        document.querySelectorAll('.payment-method').forEach(method => {
+            method.addEventListener('click', function () {
+                document.querySelectorAll('.payment-method').forEach(m => m.classList.remove('active'));
+                this.classList.add('active');
+                this.querySelector('input[type="radio"]').checked = true;
+                selectedPayment = this.dataset.method;
+            });
+        });
+
+
+    </script>
+</body>
+
+</html>

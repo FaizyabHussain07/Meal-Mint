@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile | MealMint</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/global.css">
+    <style>
+        .profile-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+            color: white;
+            padding: 60px 0;
+            text-align: center;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: white;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: bold;
+            margin: 0 auto 20px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .profile-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loader-wrapper">
+        <div class="loader"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">MEALMINT</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link" href="home.html">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="orders.html">My Orders</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="profile.html">Profile</a></li>
+                    <li class="nav-item"><button class="btn btn-outline-primary ms-lg-3" id="logoutBtn">Logout</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Profile Header -->
+    <section class="profile-header">
+        <div class="container">
+            <div class="profile-avatar" id="avatarInitial">U</div>
+            <h2 id="userName">Loading...</h2>
+            <p id="userEmail">email@example.com</p>
+        </div>
+    </section>
+
+    <!-- Profile Content -->
+    <section class="py-5 bg-light">
+        <div class="container">
+            <div class="row">
+                <!-- Stats -->
+                <div class="col-md-4 mb-4">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalOrders">0</div>
+                        <p class="mb-0">Total Orders</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <div class="stat-number" id="totalSpent">Rs. 0</div>
+                        <p class="mb-0">Total Spent</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                        <div class="stat-number" id="walletBalance">Rs. 0</div>
+                        <p class="mb-0">Wallet Balance <button
+                                class="btn btn-sm btn-light ms-2 text-primary rounded-pill py-0"
+                                onclick="topUpWallet()">Top Up</button></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-6">
+                    <!-- Personal Information -->
+                    <div class="profile-section">
+                        <h4 class="mb-4">Personal Information</h4>
+                        <form id="profileForm">
+                            <div class="mb-3">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" class="form-control" id="fullName">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" disabled>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="phone">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Update Profile</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <!-- Saved Addresses -->
+                    <div class="profile-section">
+                        <h4 class="mb-4">Saved Addresses</h4>
+                        <div id="addressesList">
+                            <div class="alert alert-info">
+                                <strong><i class="fas fa-map-marker-alt text-danger"></i> Default Address</strong>
+                                <p class="mb-0 mt-2">123 Main Street, Karachi</p>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-primary w-100">+ Add New Address</button>
+                    </div>
+
+                    <!-- Change Password -->
+                    <div class="profile-section mt-4">
+                        <h4 class="mb-4">Change Password</h4>
+                        <form id="passwordForm">
+                            <div class="mb-3">
+                                <label class="form-label">Current Password</label>
+                                <input type="password" class="form-control" id="currentPassword">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">New Password</label>
+                                <input type="password" class="form-control" id="newPassword">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Confirm New Password</label>
+                                <input type="password" class="form-control" id="confirmPassword">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Change Password</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { auth, db } from '../assets/js/firebase-config.js';
+        import { onAuthStateChanged, signOut, updateProfile, updatePassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { doc, getDoc, updateDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        import { checkAuth } from '../assets/js/role-guard.js';
+
+        // Auth & Role Check
+        checkAuth('user').then(({ user, userData }) => {
+            loadUserProfile(user);
+            loadUserStats(user.uid);
+        }).catch(err => {
+            console.error('Auth failed:', err);
+        });
+
+        window.addEventListener('load', () => {
+            document.getElementById('loader-wrapper').style.display = 'none';
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await signOut(auth);
+            window.location.href = '../index.html';
+        });
+
+        async function loadUserProfile(user) {
+            document.getElementById('userName').textContent = user.displayName || 'User';
+            document.getElementById('userEmail').textContent = user.email;
+            document.getElementById('fullName').value = user.displayName || '';
+            document.getElementById('email').value = user.email;
+
+            // Set avatar initial
+            const initial = (user.displayName || user.email).charAt(0).toUpperCase();
+            document.getElementById('avatarInitial').textContent = initial;
+
+            try {
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    document.getElementById('phone').value = userData.phone || '';
+                    document.getElementById('phone').value = userData.phone || '';
+                    document.getElementById('walletBalance').innerText = `Rs. ${userData.walletBalance || 0}`;
+                    document.getElementById('totalSpent').innerText = `Rs. ${userData.totalSpent || 0}`;
+                }
+            } catch (error) {
+                console.log('Could not load user data from Firestore');
+            }
+        }
+
+        async function loadUserStats(userId) {
+            try {
+                const q = query(collection(db, "orders"), where("userId", "==", userId));
+                const querySnapshot = await getDocs(q);
+                const orders = querySnapshot.docs.map(doc => doc.data());
+
+                document.getElementById('totalOrders').textContent = orders.length;
+                document.getElementById('totalOrders').textContent = orders.length;
+                // document.getElementById('totalSpent').textContent = `Rs. ${Math.round(totalSpent)}`; // Using User Profile field instead
+            } catch (error) {
+                console.error("Error loading stats:", error);
+                document.getElementById('totalOrders').textContent = '0';
+                document.getElementById('totalSpent').textContent = 'Rs. 0';
+            }
+        }
+
+        // Update profile
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fullName = document.getElementById('fullName').value;
+            const phone = document.getElementById('phone').value;
+
+            try {
+                await updateProfile(auth.currentUser, { displayName: fullName });
+                await updateDoc(doc(db, "users", auth.currentUser.uid), {
+                    fullName: fullName,
+                    phone: phone
+                });
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Profile Updated!',
+                    text: 'Your profile has been updated successfully',
+                    confirmButtonColor: '#d70f64'
+                });
+            } catch (error) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Profile Updated!',
+                    text: 'Your profile has been updated successfully',
+                    confirmButtonColor: '#d70f64'
+                });
+            }
+        });
+
+        // Change password
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Password Mismatch',
+                    text: 'New passwords do not match!'
+                });
+                return;
+            }
+
+            try {
+                await updatePassword(auth.currentUser, newPassword);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Password Changed!',
+                    text: 'Your password has been updated successfully',
+                    confirmButtonColor: '#d70f64'
+                });
+                document.getElementById('passwordForm').reset();
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Please re-login to change your password'
+                });
+            }
+        });
+
+        window.topUpWallet = async () => {
+            const { value: amount } = await Swal.fire({
+                title: 'Add Money to Wallet',
+                input: 'number',
+                inputLabel: 'Amount (Rs)',
+                inputPlaceholder: 'Enter amount to add',
+                showCancelButton: true
+            });
+
+            if (amount) {
+                try {
+                    const userRef = doc(db, "users", auth.currentUser.uid);
+                    const userSnap = await getDoc(userRef);
+                    const currentBalance = userSnap.data().walletBalance || 0;
+                    const newBalance = currentBalance + parseInt(amount);
+
+                    await updateDoc(userRef, { walletBalance: newBalance });
+                    document.getElementById('walletBalance').innerText = `Rs. ${newBalance}`;
+                    Swal.fire('Success', `Rs. ${amount} added to your wallet!`, 'success');
+                } catch (e) {
+                    Swal.fire('Error', e.message, 'error');
+                }
+            }
+        };
+    </script>
+</body>
+
+</html>

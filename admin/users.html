@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Users | MealMint Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/global.css">
+    <link rel="stylesheet" href="../assets/css/vendor.css">
+</head>
+
+<body>
+    <div class="vendor-layout">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h4 class="fw-bold text-dark mb-0">MealMint Admin</h4>
+            </div>
+            <div class="sidebar-menu">
+                <ul class="nav flex-column">
+                    <li class="nav-item"><a href="dashboard.html" class="nav-link"><i class="fas fa-home"></i>
+                            Dashboard</a></li>
+                    <li class="nav-item"><a href="vendors.html" class="nav-link"><i class="fas fa-store"></i>
+                            Vendors</a></li>
+                    <li class="nav-item"><a href="users.html" class="nav-link active"><i class="fas fa-users"></i>
+                            Users</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="main-content">
+            <h2 class="fw-bold mb-4">All Users</h2>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive" id="usersTable">
+                        <div class="p-4 text-center">Loading users...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { auth, db } from '../assets/js/firebase-config.js';
+        import { checkAuth } from '../assets/js/role-guard.js';
+        import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Auth & Role Check
+        checkAuth('admin').then(({ user, userData }) => {
+            loadUsers();
+        }).catch(err => {
+            console.error('Auth failed:', err);
+        });
+
+        async function loadUsers() {
+            const container = document.getElementById('usersTable');
+            const q = query(collection(db, "users"), where("role", "==", "user"));
+
+            try {
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    container.innerHTML = '<div class="p-4 text-center text-muted">No users found.</div>';
+                    return;
+                }
+
+                let html = `
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Joined</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                querySnapshot.forEach(doc => {
+                    const user = doc.data();
+                    const date = user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-';
+
+                    html += `
+                        <tr>
+                            <td class="ps-4 fw-bold">${user.fullName}</td>
+                            <td>${user.email}</td>
+                            <td>${user.phone || '-'}</td>
+                            <td>${date}</td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table>';
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error("Error:", error);
+                container.innerHTML = '<div class="p-4 text-center text-danger">Error loading data.</div>';
+            }
+        }
+    </script>
+</body>
+
+</html>

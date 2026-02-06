@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earnings | MealMint Vendor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/global.css">
+    <link rel="stylesheet" href="../assets/css/vendor.css">
+</head>
+
+<body>
+    <div class="vendor-layout">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h4 class="fw-bold text-success mb-0">MealMint Partner</h4>
+            </div>
+            <div class="sidebar-menu">
+                <ul class="nav flex-column">
+                    <li class="nav-item"><a href="vendor-dashboard.html" class="nav-link"><i class="fas fa-home"></i>
+                            Dashboard</a></li>
+                    <li class="nav-item"><a href="orders.html" class="nav-link"><i class="fas fa-shopping-bag"></i>
+                            Orders</a></li>
+                    <li class="nav-item"><a href="menu.html" class="nav-link"><i class="fas fa-utensils"></i> Menu
+                            Management</a></li>
+                    <li class="nav-item"><a href="earnings.html" class="nav-link active"><i class="fas fa-wallet"></i>
+                            Earnings</a></li>
+                    <li class="nav-item"><a href="settings.html" class="nav-link"><i class="fas fa-cog"></i>
+                            Settings</a></li>
+                </ul>
+                <div class="mt-auto p-3">
+                    <button class="btn btn-outline-danger w-100" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="main-content">
+            <h2 class="fw-bold mb-4">Earnings Overview</h2>
+
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Revenue</h5>
+                            <h2 class="fw-bold" id="totalRevenue">Rs. 0</h2>
+                            <p class="mb-0 small opacity-75">Lifetime earnings</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">Orders Completed</h5>
+                            <h2 class="fw-bold" id="ordersCompleted">0</h2>
+                            <p class="mb-0 small opacity-75">Successful deliveries</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h5 class="card-title">Pending Payment</h5>
+                            <h2 class="fw-bold" id="pendingBalance">Rs. 0</h2>
+                            <p class="mb-0 small opacity-75">Available for withdrawal</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-bold">Transaction History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Order ID</th>
+                                    <th>Date</th>
+                                    <th>Customer</th>
+                                    <th>Items</th>
+                                    <th class="text-end pe-4">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="earningsTable">
+                                <tr>
+                                    <td colspan="5" class="text-center p-4">Loading history...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { auth, db } from '../assets/js/firebase-config.js';
+        import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        import { checkAuth } from '../assets/js/role-guard.js';
+
+        // Auth & Role Check (requires verification)
+        checkAuth('vendor', true).then(({ user, userData }) => {
+            loadEarnings(user.uid);
+        }).catch(err => {
+            console.error('Auth failed:', err);
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            signOut(auth).then(() => window.location.href = 'vendor-login.html');
+        });
+
+        async function loadEarnings(uid) {
+            try {
+                // Fetch ONLY completed orders
+                const q = query(collection(db, "orders"), where("restaurantId", "==", uid));
+                const snapshot = await getDocs(q);
+
+                let revenue = 0;
+                let count = 0;
+                let historyHTML = '';
+                const orders = [];
+
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data.status === 'completed') { // Filter logic
+                        revenue += data.total || 0;
+                        count++;
+                        orders.push({ id: docSnap.id, ...data });
+                    }
+                });
+
+                document.getElementById('totalRevenue').innerText = `Rs. ${Math.round(revenue).toLocaleString()}`;
+                document.getElementById('ordersCompleted').innerText = count;
+                document.getElementById('pendingBalance').innerText = `Rs. ${Math.round(revenue * 0.9).toLocaleString()}`; // 90% share
+
+                // Sort Descending Date
+                orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                if (orders.length === 0) {
+                    document.getElementById('earningsTable').innerHTML = '<tr><td colspan="5" class="text-center p-4 text-muted">No completed orders yet.</td></tr>';
+                    return;
+                }
+
+                orders.forEach(order => {
+                    historyHTML += `
+                        <tr>
+                            <td class="ps-4 fw-bold">#${order.id.slice(0, 6)}</td>
+                            <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                            <td>${order.customerName || order.deliveryAddress?.fullName || 'Guest'}</td>
+                            <td>${order.items.length} items</td>
+                            <td class="text-end pe-4 fw-bold text-success">+ Rs. ${Math.round(order.total)}</td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('earningsTable').innerHTML = historyHTML;
+
+            } catch (error) {
+                console.error(error);
+                document.getElementById('earningsTable').innerHTML = '<tr><td colspan="5" class="text-center text-danger p-4">Error loading data.</td></tr>';
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Orders | MealMint Vendor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/global.css">
+    <link rel="stylesheet" href="../assets/css/vendor.css">
+</head>
+
+<body>
+    <div id="loader-wrapper">
+        <div class="loader"></div>
+    </div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 vendor-sidebar">
+                <div class="vendor-logo">
+                    <h3>MEALMINT</h3>
+                    <p class="small mb-0">Vendor Panel</p>
+                </div>
+                <nav class="nav flex-column">
+                    <a class="nav-link" href="vendor-dashboard.html">📊 Dashboard</a>
+                    <a class="nav-link active" href="vendor-orders.html">📦 Orders</a>
+                    <a class="nav-link" href="vendor-items.html">🍔 Menu Items</a>
+                    <a class="nav-link" href="vendor-categories.html">📂 Categories</a>
+                    <a class="nav-link" href="vendor-profile.html">⚙️ Settings</a>
+                    <a class="nav-link text-danger" href="#" onclick="logout()">🚪 Logout</a>
+                </nav>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 p-4">
+                <h2 class="fw-bold mb-4">Manage Orders</h2>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Customer</th>
+                                        <th>Items</th>
+                                        <th>Total</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="orders-table">
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted">Loading orders...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module" src="../assets/js/auth.js"></script>
+    <script type="module" src="../assets/js/role-guard.js"></script>
+    <script type="module">
+        import { db, auth } from '../assets/js/firebase-config.js';
+        import { collection, query, where, getDocs, onSnapshot, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        let vendorShopId = null;
+
+        checkAuth('vendor', true).then(async () => {
+            await loadVendorShop();
+            if (vendorShopId) {
+                loadOrders();
+            }
+            hideLoader();
+        }).catch(() => {
+            hideLoader();
+        });
+
+        async function loadVendorShop() {
+            try {
+                const shopsQuery = query(collection(db, 'shops'), where('vendorId', '==', auth.currentUser.uid));
+                const querySnapshot = await getDocs(shopsQuery);
+
+                if (!querySnapshot.empty) {
+                    vendorShopId = querySnapshot.docs[0].id;
+                }
+            } catch (error) {
+                console.error('Error loading shop:', error);
+            }
+        }
+
+        function loadOrders() {
+            const ordersQuery = query(
+                collection(db, 'orders'),
+                where('shopId', '==', vendorShopId)
+            );
+
+            onSnapshot(ordersQuery, async (snapshot) => {
+                const tbody = document.getElementById('orders-table');
+
+                if (snapshot.empty) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No orders yet</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+
+                for (const orderDoc of snapshot.docs) {
+                    const order = orderDoc.data();
+
+                    // Get customer name
+                    let customerName = 'Customer';
+                    try {
+                        const customerDoc = await getDoc(doc(db, 'users', order.customerUid));
+                        if (customerDoc.exists()) {
+                            customerName = customerDoc.data().name;
+                        }
+                    } catch (error) {
+                        console.error('Error getting customer:', error);
+                    }
+
+                    const date = new Date(order.createdAt).toLocaleDateString();
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>#${orderDoc.id.substring(0, 8)}</td>
+                            <td>${customerName}</td>
+                            <td>${order.items.length} items</td>
+                            <td>Rs ${order.total}</td>
+                            <td><span class="badge badge-${order.status}">${order.status.replace('_', ' ').toUpperCase()}</span></td>
+                            <td>${date}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="updateOrderStatus('${orderDoc.id}', '${order.status}')">Update</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            });
+        }
+
+        window.updateOrderStatus = async function (orderId, currentStatus) {
+            const statuses = {
+                pending: 'preparing',
+                preparing: 'on_the_way',
+                on_the_way: 'delivered',
+                delivered: 'delivered'
+            };
+
+            const statusLabels = {
+                pending: 'Pending',
+                preparing: 'Preparing',
+                on_the_way: 'On the Way',
+                delivered: 'Delivered'
+            };
+
+            const { value: newStatus } = await Swal.fire({
+                title: 'Update Order Status',
+                input: 'select',
+                inputOptions: statusLabels,
+                inputValue: currentStatus,
+                showCancelButton: true,
+                confirmButtonColor: '#d70f64',
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'You need to select a status!';
+                    }
+                }
+            });
+
+            if (newStatus) {
+                showLoader();
+                try {
+                    await updateDoc(doc(db, 'orders', orderId), {
+                        status: newStatus
+                    });
+                    hideLoader();
+                    showToast('Order status updated successfully!', 'success');
+                } catch (error) {
+                    hideLoader();
+                    console.error('Error updating status:', error);
+                    Swal.fire('Error', 'Failed to update order status', 'error');
+                }
+            }
+        };
+    </script>
+</body>
+
+</html>

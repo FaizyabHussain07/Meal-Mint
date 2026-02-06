@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Settings | MealMint</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/global.css">
+    <link rel="stylesheet" href="../assets/css/vendor.css">
+</head>
+
+<body>
+    <div class="vendor-layout">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h4 class="fw-bold text-success mb-0">MealMint Partner</h4>
+            </div>
+            <div class="sidebar-menu">
+                <ul class="nav flex-column">
+                    <li class="nav-item"><a href="vendor-dashboard.html" class="nav-link"><i class="fas fa-home"></i>
+                            Dashboard</a></li>
+                    <li class="nav-item"><a href="orders.html" class="nav-link"><i class="fas fa-shopping-bag"></i>
+                            Orders</a></li>
+                    <li class="nav-item"><a href="menu.html" class="nav-link"><i class="fas fa-utensils"></i> Menu
+                            Management</a></li>
+                    <li class="nav-item"><a href="earnings.html" class="nav-link"><i class="fas fa-wallet"></i>
+                            Earnings</a></li>
+                    <li class="nav-item"><a href="settings.html" class="nav-link active"><i class="fas fa-cog"></i>
+                            Settings</a></li>
+                </ul>
+                <div class="mt-auto p-3">
+                    <button class="btn btn-outline-danger w-100" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <h2 class="fw-bold mb-4">Store Settings</h2>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form id="settingsForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Restaurant Name</label>
+                                <input type="text" class="form-control" id="resName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Cuisine Type</label>
+                                <input type="text" class="form-control" id="resCuisine"
+                                    placeholder="e.g. Fast Food, Italian">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="resDesc" rows="3"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Cover Image URL</label>
+                            <input type="url" class="form-control" id="resImage" placeholder="https://...">
+                            <div class="form-text">Provide a direct link to an image (e.g. from Unsplash).</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Delivery Time (mins)</label>
+                                <input type="text" class="form-control" id="resTime" placeholder="e.g. 30-45 min">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Minimum Order (Rs)</label>
+                                <input type="number" class="form-control" id="resMinOrder">
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <button type="submit" class="btn btn-primary px-5">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { auth, db } from '../assets/js/firebase-config.js';
+        import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        let uid = null;
+
+        import { checkAuth } from '../assets/js/role-guard.js';
+
+        // Auth & Role Check (requires verification)
+        checkAuth('vendor', true).then(({ user, userData }) => {
+            uid = user.uid;
+            loadSettings();
+        }).catch(err => {
+            console.error('Auth failed:', err);
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            signOut(auth).then(() => window.location.href = 'vendor-login.html');
+        });
+
+        async function loadSettings() {
+            try {
+                const docSnap = await getDoc(doc(db, "restaurants", uid));
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    document.getElementById('resName').value = data.name || '';
+                    document.getElementById('resCuisine').value = data.cuisine || '';
+                    document.getElementById('resDesc').value = data.description || '';
+                    document.getElementById('resImage').value = data.image || '';
+                    document.getElementById('resTime').value = data.deliveryTime || '';
+                    document.getElementById('resMinOrder').value = data.minOrder || '';
+                }
+            } catch (error) {
+                console.error("Error loading settings:", error);
+                Swal.fire('Error', 'Failed to load settings', 'error');
+            }
+        }
+
+        document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                await updateDoc(doc(db, "restaurants", uid), {
+                    name: document.getElementById('resName').value,
+                    cuisine: document.getElementById('resCuisine').value,
+                    description: document.getElementById('resDesc').value,
+                    image: document.getElementById('resImage').value,
+                    deliveryTime: document.getElementById('resTime').value,
+                    minOrder: Number(document.getElementById('resMinOrder').value)
+                });
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Saved',
+                    text: 'Restaurant settings updated successfully',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Save Changes';
+            }
+        });
+    </script>
+</body>
+
+</html>

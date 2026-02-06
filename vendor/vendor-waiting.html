@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pending Verification | MealMint</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/global.css">
+    <link rel="stylesheet" href="../assets/css/vendor.css">
+</head>
+
+<body>
+    <div id="loader-wrapper">
+        <div class="loader"></div>
+    </div>
+
+    <div class="waiting-container">
+        <div class="waiting-card">
+            <div class="waiting-icon pulse">⏳</div>
+            <h2 class="fw-bold mb-3">Verification Pending</h2>
+            <p class="text-muted mb-4">Your vendor account is awaiting admin verification. You will be notified once
+                your account is approved.</p>
+            <button class="btn btn-primary mb-3" onclick="checkVerificationStatus()">Check Status</button>
+            <br>
+            <a href="#" class="text-danger" onclick="logout()">Logout</a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module" src="../assets/js/auth.js"></script>
+    <script type="module" src="../assets/js/role-guard.js"></script>
+    <script type="module">
+        import { db, auth } from '../assets/js/firebase-config.js';
+        import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        checkAuth('vendor', false).then(() => {
+            hideLoader();
+        }).catch(() => {
+            hideLoader();
+        });
+
+        window.checkVerificationStatus = async function () {
+            showLoader();
+            try {
+                const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+                const userData = userDoc.data();
+
+                if (userData.isVerified) {
+                    Swal.fire({
+                        title: 'Verified!',
+                        text: 'Your account has been verified. Redirecting to dashboard...',
+                        icon: 'success',
+                        confirmButtonColor: '#d70f64'
+                    }).then(() => {
+                        window.location.href = 'vendor-dashboard.html';
+                    });
+                } else {
+                    hideLoader();
+                    Swal.fire({
+                        title: 'Still Pending',
+                        text: 'Your account is still awaiting verification. Please check back later.',
+                        icon: 'info',
+                        confirmButtonColor: '#d70f64'
+                    });
+                }
+            } catch (error) {
+                hideLoader();
+                console.error('Error checking status:', error);
+                Swal.fire('Error', 'Failed to check verification status', 'error');
+            }
+        };
+    </script>
+</body>
+
+</html>

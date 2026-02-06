@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Management | MealMint</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/global.css">
+    <link rel="stylesheet" href="../assets/css/vendor.css">
+</head>
+
+<body>
+    <div class="vendor-layout">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h4 class="fw-bold text-success mb-0">MealMint Partner</h4>
+            </div>
+            <div class="sidebar-menu">
+                <ul class="nav flex-column">
+                    <li class="nav-item"><a href="vendor-dashboard.html" class="nav-link"><i class="fas fa-home"></i>
+                            Dashboard</a></li>
+                    <li class="nav-item"><a href="orders.html" class="nav-link active"><i
+                                class="fas fa-shopping-bag"></i> Orders</a></li>
+                    <li class="nav-item"><a href="menu.html" class="nav-link"><i class="fas fa-utensils"></i> Menu
+                            Management</a></li>
+                    <li class="nav-item"><a href="earnings.html" class="nav-link"><i class="fas fa-wallet"></i>
+                            Earnings</a></li>
+                    <li class="nav-item"><a href="settings.html" class="nav-link"><i class="fas fa-cog"></i>
+                            Settings</a></li>
+                </ul>
+                <div class="mt-auto p-3">
+                    <button class="btn btn-outline-danger w-100" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <h2 class="fw-bold mb-4">Order Management</h2>
+
+            <div class="row g-4">
+                <!-- New Orders -->
+                <div class="col-md-6">
+                    <div class="kanban-column h-100">
+                        <div class="kanban-header text-primary">
+                            <span>New Orders</span>
+                            <span class="badge bg-primary rounded-pill" id="count-pending">0</span>
+                        </div>
+                        <div id="col-pending">
+                            <div class="text-center text-muted p-3">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preparing -->
+                <div class="col-md-6">
+                    <div class="kanban-column h-100">
+                        <div class="kanban-header text-warning">
+                            <span>Preparing</span>
+                            <span class="badge bg-warning rounded-pill text-dark" id="count-preparing">0</span>
+                        </div>
+                        <div id="col-preparing"></div>
+                    </div>
+                </div>
+
+                <!-- Ready / Out for Delivery -->
+                <div class="col-md-6">
+                    <div class="kanban-column h-100">
+                        <div class="kanban-header text-success">
+                            <span>Ready to Pickup</span>
+                            <span class="badge bg-success rounded-pill" id="count-ready">0</span>
+                        </div>
+                        <div id="col-ready"></div>
+                    </div>
+                </div>
+
+                <!-- Completed -->
+                <div class="col-md-6">
+                    <div class="kanban-column h-100">
+                        <div class="kanban-header text-secondary">
+                            <span>Completed</span>
+                            <span class="badge bg-secondary rounded-pill" id="count-completed">0</span>
+                        </div>
+                        <div id="col-completed"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { auth, db } from '../assets/js/firebase-config.js';
+        import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { doc, updateDoc, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        import { checkAuth } from '../assets/js/role-guard.js';
+
+        // Auth & Role Check (requires verification)
+        checkAuth('vendor', true).then(({ user, userData }) => {
+            initOrders(user.uid);
+        }).catch(err => {
+            console.error('Auth failed:', err);
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            signOut(auth).then(() => window.location.href = 'vendor-login.html');
+        });
+
+        function initOrders(uid) {
+            const q = query(collection(db, "orders"), where("restaurantId", "==", uid));
+
+            onSnapshot(q, (snapshot) => {
+                const orders = {
+                    pending: [],
+                    preparing: [],
+                    ready: [],
+                    completed: []
+                };
+
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    data.id = docSnap.id;
+                    if (orders[data.status]) {
+                        orders[data.status].push(data);
+                    } else if (data.status === 'on-the-way') {
+                        // Treat on-the-way as ready for vendor view
+                        orders['ready'].push(data);
+                    } else if (data.status === 'cancelled' || data.status === 'rejected') {
+                        // Optional: Show rejected/cancelled? For now maybe in completed or separate
+                        data.statusLabel = 'Cancelled';
+                        orders['completed'].push(data);
+                    }
+                });
+
+                // Update Counts since sort modifies array
+                document.getElementById('count-pending').textContent = orders.pending.length;
+                document.getElementById('count-preparing').textContent = orders.preparing.length;
+                document.getElementById('count-ready').textContent = orders.ready.length;
+                document.getElementById('count-completed').textContent = orders.completed.length;
+
+                // Sort by date desc
+                Object.keys(orders).forEach(status => {
+                    orders[status].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    renderColumn(`col-${status}`, orders[status], status);
+                });
+            });
+        }
+
+        function renderColumn(colId, list, status) {
+            const container = document.getElementById(colId);
+            container.innerHTML = '';
+
+            list.forEach(order => {
+                const timeAgo = getTimeAgo(new Date(order.createdAt));
+                const itemsList = order.items.map(i => `<li>${i.quantity}x ${i.name}</li>`).join('');
+
+                let actions = '';
+                if (status === 'pending') {
+                    actions = `
+                        <div class="d-flex gap-2 mt-2">
+                            <button class="btn btn-sm btn-success w-100" onclick="updateStatus('${order.id}', 'preparing')">Accept</button>
+                            <button class="btn btn-sm btn-danger w-100" onclick="updateStatus('${order.id}', 'rejected')">Reject</button>
+                        </div>
+                    `;
+                } else if (status === 'preparing') {
+                    actions = `<button class="btn btn-sm btn-primary w-100 mt-2" onclick="updateStatus('${order.id}', 'ready')">Mark Ready</button>`;
+                } else if (status === 'ready') {
+                    actions = `<button class="btn btn-sm btn-success w-100 mt-2" onclick="updateStatus('${order.id}', 'completed')">Complete Order</button>`;
+                }
+
+                const html = `
+                    <div class="order-card-vendor ${status}">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="fw-bold">#${order.id.slice(0, 6)}</span>
+                            <small class="text-muted">${timeAgo}</small>
+                        </div>
+                        <div class="mb-2"><strong>${order.deliveryAddress?.fullName || 'Guest'}</strong></div>
+                        <ul class="list-unstyled small mb-3 text-muted">
+                            ${itemsList}
+                        </ul>
+                        <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                            <small class="fw-bold">Rs. ${Math.round(order.total)}</small>
+                            ${order.statusLabel ? `<span class="badge bg-secondary">${order.statusLabel}</span>` : ''}
+                        </div>
+                        ${actions}
+                    </div>
+                `;
+                container.innerHTML += html;
+            });
+        }
+
+        window.updateStatus = async (orderId, newStatus) => {
+            try {
+                await updateDoc(doc(db, "orders", orderId), { status: newStatus });
+                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                Toast.fire({ icon: 'success', title: 'Order Updated' });
+            } catch (e) {
+                Swal.fire('Error', e.message, 'error');
+            }
+        };
+
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            let interval = seconds / 31536000;
+            if (interval > 1) return Math.floor(interval) + "y ago";
+            interval = seconds / 2592000;
+            if (interval > 1) return Math.floor(interval) + "mo ago";
+            interval = seconds / 86400;
+            if (interval > 1) return Math.floor(interval) + "d ago";
+            interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + "h ago";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + "m ago";
+            return Math.floor(seconds) + "s ago";
+        }
+    </script>
+</body>
+
+</html>

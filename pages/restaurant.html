@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Menu | MealMint</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/global.css">
+    <style>
+        .restaurant-header {
+            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.7)), url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200');
+            background-size: cover;
+            background-position: center;
+            color: white;
+            padding: 80px 0 40px;
+        }
+
+        .menu-item-card {
+            transition: all 0.3s ease;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .menu-item-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .menu-item-img {
+            height: 180px;
+            object-fit: cover;
+            width: 100%;
+        }
+
+        .add-to-cart-btn {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .category-pills {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 10px 0;
+        }
+
+        .category-pill {
+            padding: 10px 20px;
+            border-radius: 25px;
+            background: white;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+
+        .category-pill.active,
+        .category-pill:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loader-wrapper">
+        <div class="loader"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">MEALMINT</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link" href="home.html">← Back to Restaurants</a></li>
+                    <li class="nav-item"><a class="nav-link" href="cart.html"><i class="fas fa-shopping-cart"></i> Cart
+                            <span class="badge bg-danger" id="cartCount">0</span></a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Restaurant Header -->
+    <section class="restaurant-header">
+        <div class="container">
+            <h1 id="restaurantName">Loading...</h1>
+            <div class="d-flex gap-4 mt-3">
+                <span><i class="fas fa-star text-warning"></i> <span id="restaurantRating">0</span></span>
+                <span><i class="fas fa-clock text-info"></i> <span id="deliveryTime">--</span></span>
+                <span><i class="fas fa-utensils text-success"></i> Min Order: Rs. <span id="minOrder">0</span></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Menu Section -->
+    <section class="py-5">
+        <div class="container">
+            <!-- Category Filter -->
+            <div class="category-pills mb-4" id="categoryPills">
+                <div class="category-pill active" data-category="all">All Items</div>
+                <div class="category-pill" data-category="appetizers">Appetizers</div>
+                <div class="category-pill" data-category="main">Main Course</div>
+                <div class="category-pill" data-category="desserts">Desserts</div>
+                <div class="category-pill" data-category="drinks">Drinks</div>
+            </div>
+
+            <!-- Menu Items -->
+            <div class="row g-4" id="menuContainer">
+                <!-- Menu items will be loaded here -->
+            </div>
+        </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { auth, db } from '../assets/js/firebase-config.js';
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { collection, getDocs, query, where, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        import { checkAuth } from '../assets/js/role-guard.js';
+
+        let menuItems = [];
+        let currentCategory = 'all';
+
+        // Auth & Role Check
+        checkAuth('user').then(({ user, userData }) => {
+            loadRestaurantData();
+        }).catch(err => {
+            console.error('Auth failed:', err);
+        });
+
+        window.addEventListener('load', () => {
+            document.getElementById('loader-wrapper').style.display = 'none';
+        });
+
+        async function loadRestaurantData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const restaurantId = urlParams.get('id');
+
+            if (!restaurantId) {
+                window.location.href = 'home.html';
+                return;
+            }
+
+            try {
+                // Fetch Restaurant Info (using ID directly as it matches UID in our setup)
+                const docSnap = await getDoc(doc(db, "restaurants", restaurantId));
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    document.getElementById('restaurantName').textContent = data.name;
+                    document.getElementById('restaurantRating').textContent = data.rating || 'New';
+                    document.getElementById('deliveryTime').textContent = '30-45 min'; // Hardcoded for MVP or fetch if field exists
+                    document.getElementById('minOrder').textContent = data.minOrder || '0';
+
+                    // Load Menu Items
+                    loadMenuItems(restaurantId);
+                } else {
+                    Swal.fire('Error', 'Restaurant not found', 'error').then(() => window.location.href = 'home.html');
+                }
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error', 'Could not load page', 'error');
+            }
+        }
+
+        async function loadMenuItems(restaurantId) {
+            try {
+                // Fetch menu items where ownerId matches restaurant ID (UID)
+                const q = query(collection(db, "menu_items"), where("ownerId", "==", restaurantId));
+                const querySnapshot = await getDocs(q);
+
+                menuItems = [];
+                querySnapshot.forEach((doc) => {
+                    menuItems.push({ id: doc.id, ...doc.data() });
+                });
+
+                displayMenuItems(menuItems);
+            } catch (e) {
+                console.error("Error loading menu:", e);
+            }
+        }
+
+
+        function displayMenuItems(items) {
+            const container = document.getElementById('menuContainer');
+            container.innerHTML = '';
+
+            const filteredItems = currentCategory === 'all' ? items : items.filter(item => item.category === currentCategory);
+
+            filteredItems.forEach(item => {
+                const card = `
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card menu-item-card">
+                            <div style="position: relative;">
+                                <img src="${item.image}" class="menu-item-img" alt="${item.name}">
+                                <button class="btn btn-primary add-to-cart-btn" onclick="addToCart('${item.id}')">+</button>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">${item.name}</h5>
+                                <p class="text-muted small">${item.description}</p>
+                                <h4 class="text-primary-color">Rs. ${item.price}</h4>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += card;
+            });
+        }
+
+        // Category filter
+        document.querySelectorAll('.category-pill').forEach(pill => {
+            pill.addEventListener('click', function () {
+                document.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+                currentCategory = this.dataset.category;
+                displayMenuItems(menuItems);
+            });
+        });
+
+        // Add to cart
+        window.addToCart = function (itemId) {
+            const item = menuItems.find(i => i.id === itemId);
+            // Get current restaurant info for the cart item
+            // We need to pass shopId (or ownerId) so checkout knows who to pay/assign order to
+            const urlParams = new URLSearchParams(window.location.search);
+            const restaurantId = urlParams.get('id');
+            const restaurantName = document.getElementById('restaurantName').textContent;
+
+            let cart = JSON.parse(localStorage.getItem('mealmint_cart') || '[]');
+
+            const existingItem = cart.find(i => i.id === itemId);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({
+                    ...item,
+                    quantity: 1,
+                    shopId: restaurantId, // Crucial for checkout
+                    shopName: restaurantName
+                });
+            }
+
+            localStorage.setItem('mealmint_cart', JSON.stringify(cart));
+            updateCartCount();
+
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 1500,
+                timerProgressBar: true
+            });
+            Toast.fire({
+                icon: 'success',
+                title: 'Added to Cart'
+            });
+        };
+
+        function updateCartCount() {
+            const cart = JSON.parse(localStorage.getItem('mealmint_cart') || '[]');
+            document.getElementById('cartCount').textContent = cart.reduce((acc, item) => acc + item.quantity, 0);
+        }
+        updateCartCount();
+    </script>
+</body>
+
+</html>
