@@ -107,7 +107,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ## 📧 Contact
 
 **Project Managed by**: [Faizyab Hussain , Kashif , Gufraan]  
-**Website**: [https://mealmint.netlify.app](https://mealmint.netlify.app)
+**Website**: [https://meal-mint.netlify.app](https://meal-mint.netlify.app)
 
 ---
 *Created with ❤️ for the Food Marketplace Community.*

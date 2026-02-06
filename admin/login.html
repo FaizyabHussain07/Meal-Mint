@@ -10,24 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/global.css">
-    <style>
-        .admin-auth-container {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #f8fafc;
-        }
-
-        .admin-card {
-            background: white;
-            padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-            width: 100%;
-            max-width: 400px;
-        }
-    </style>
+    <link rel="stylesheet" href="../assets/css/admin/admin-login.css">
 </head>
 
 <body>
@@ -47,33 +30,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script type="module">
-        import { auth, db } from '../assets/js/firebase-config.js';
-        import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-
-            try {
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-
-                // Check if user is admin
-                const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
-
-                if (userDoc.exists() && userDoc.data().role === 'admin') {
-                    window.location.href = 'dashboard.html';
-                } else {
-                    Swal.fire('Access Denied', 'You do not have admin privileges.', 'error');
-                    auth.signOut();
-                }
-            } catch (error) {
-                Swal.fire('Error', error.message, 'error');
-            }
-        });
-    </script>
+    <script type="module" src="../assets/js/admin/admin-login.js"></script>
 </body>
 
 </html>
